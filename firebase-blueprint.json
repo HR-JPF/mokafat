@@ -1,0 +1,217 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Employee directory record linking ZKTeco device PIN to contact details",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "empCode": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "department": { "type": "string", "minLength": 0, "maxLength": 80 },
+        "phone": { "type": "string", "minLength": 0, "maxLength": 32 },
+        "email": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "empCode", "name", "department", "phone", "email", "active", "createdAt", "updatedAt"]
+    },
+    "WeeklyBatch": {
+      "title": "WeeklyBatch",
+      "description": "Uploaded weekly ZKTeco fingerprint batch summary for Sunday-Thursday",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "weekKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "weekLabel": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "totalEmployees": { "type": "number" },
+        "compliantCount": { "type": "number" },
+        "nonCompliantCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "weekKey", "weekLabel", "fileName", "totalEmployees", "compliantCount", "nonCompliantCount", "createdAt", "updatedAt"]
+    },
+    "EmployeeEvaluation": {
+      "title": "EmployeeEvaluation",
+      "description": "Weekly Sun-Thu evaluation and manager reward decision for one employee",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "empCode": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "employeeName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "department": { "type": "string", "minLength": 0, "maxLength": 80 },
+        "phone": { "type": "string", "minLength": 0, "maxLength": 32 },
+        "email": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "isCompliant": { "type": "boolean" },
+        "lateDaysCount": { "type": "number" },
+        "totalLateMinutes": { "type": "number" },
+        "earlyLeaveMinutes": { "type": "number" },
+        "missingPunchDays": { "type": "number" },
+        "absentDays": { "type": "number" },
+        "presentDays": { "type": "number" },
+        "decision": { "type": "string", "enum": ["reward", "allow_same", "allow_with_warning", "deny_reward", "pending"] },
+        "excusedDates": { "type": "array" },
+        "days": { "type": "array" },
+        "lastNotifiedAt": { "type": "string", "minLength": 0, "maxLength": 64 },
+        "lastNotificationStatus": { "type": "string", "enum": ["none", "sent", "failed", "partial"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "batchId",
+        "empCode",
+        "employeeName",
+        "department",
+        "phone",
+        "email",
+        "isCompliant",
+        "lateDaysCount",
+        "totalLateMinutes",
+        "earlyLeaveMinutes",
+        "missingPunchDays",
+        "absentDays",
+        "presentDays",
+        "decision",
+        "excusedDates",
+        "days",
+        "lastNotifiedAt",
+        "lastNotificationStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Audit log of every WhatsApp or Email notification dispatch",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "weekKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "weekLabel": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "empCode": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "employeeName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "recipient": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "decision": { "type": "string", "enum": ["reward", "allow_same", "allow_with_warning", "deny_reward"] },
+        "channel": { "type": "string", "enum": ["whatsapp_api", "whatsapp_web", "email"] },
+        "status": { "type": "string", "enum": ["sent", "failed", "pending"] },
+        "messagePreview": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "errorMessage": { "type": "string", "minLength": 0, "maxLength": 400 },
+        "sentByEmail": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "batchId",
+        "weekKey",
+        "weekLabel",
+        "empCode",
+        "employeeName",
+        "recipient",
+        "decision",
+        "channel",
+        "status",
+        "messagePreview",
+        "errorMessage",
+        "sentByEmail",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "Manager compliance rules, WhatsApp and Email non-secret settings, and message templates",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "workStartTime": { "type": "string", "minLength": 5, "maxLength": 5, "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+        "workEndTime": { "type": "string", "minLength": 5, "maxLength": 5, "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+        "graceLateMinutes": { "type": "number" },
+        "graceEarlyMinutes": { "type": "number" },
+        "maxLateDaysAllowed": { "type": "number" },
+        "maxTotalLateMinutes": { "type": "number" },
+        "thursdayMorningOnly": { "type": "boolean" },
+        "countMissingPunchAsNonCompliant": { "type": "boolean" },
+        "countAbsenceAsNonCompliant": { "type": "boolean" },
+        "whatsappMode": { "type": "string", "enum": ["both", "api", "web"] },
+        "whatsappProvider": { "type": "string", "enum": ["cloud_api", "ultramsg", "webhook"] },
+        "whatsappPhoneNumberId": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "whatsappInstanceId": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "whatsappWebhookUrl": { "type": "string", "minLength": 0, "maxLength": 300 },
+        "defaultCountryCode": { "type": "string", "minLength": 0, "maxLength": 8 },
+        "emailEnabled": { "type": "boolean" },
+        "smtpHost": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "smtpPort": { "type": "number" },
+        "smtpSecure": { "type": "boolean" },
+        "smtpUser": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "emailFromName": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "emailFromAddress": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "emailSubject": { "type": "string", "minLength": 0, "maxLength": 200 },
+        "templateReward": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "templateAllowWithWarning": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "templateDenyReward": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "workStartTime",
+        "workEndTime",
+        "graceLateMinutes",
+        "graceEarlyMinutes",
+        "maxLateDaysAllowed",
+        "maxTotalLateMinutes",
+        "thursdayMorningOnly",
+        "countMissingPunchAsNonCompliant",
+        "countAbsenceAsNonCompliant",
+        "whatsappMode",
+        "whatsappProvider",
+        "whatsappPhoneNumberId",
+        "whatsappInstanceId",
+        "whatsappWebhookUrl",
+        "defaultCountryCode",
+        "emailEnabled",
+        "smtpHost",
+        "smtpPort",
+        "smtpSecure",
+        "smtpUser",
+        "emailFromName",
+        "emailFromAddress",
+        "emailSubject",
+        "templateReward",
+        "templateAllowWithWarning",
+        "templateDenyReward",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/employees/{employeeDocId}": {
+      "schema": "Employee",
+      "description": "Manager-owned employee directory entries with ZKTeco PIN and contact info"
+    },
+    "/weeklyBatches/{batchId}": {
+      "schema": "WeeklyBatch",
+      "description": "Uploaded weekly attendance summary documents"
+    },
+    "/weeklyBatches/{batchId}/evaluations/{evalId}": {
+      "schema": "EmployeeEvaluation",
+      "description": "Per-employee weekly Sun-Thu evaluation and manager decision"
+    },
+    "/activityLogs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Immutable dispatch log for WhatsApp and Email notifications"
+    },
+    "/userSettings/{userId}": {
+      "schema": "UserSettings",
+      "description": "Per-manager attendance rules, notification config, and templates"
+    }
+  }
+}

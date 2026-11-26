@@ -1,0 +1,392 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'noor1saleh1@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCode(code) {
+      return code is string && code.size() >= 1 && code.size() <= 40 && code.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validation Blueprints ---
+    function isValidEmployee(data) {
+      return data.keys().hasAll([
+          'ownerId', 'empCode', 'name', 'department', 'phone', 'email', 'active', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId', 'empCode', 'name', 'department', 'phone', 'email', 'active', 'createdAt', 'updatedAt'
+        ]) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+        isValidCode(data.empCode) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.department is string && data.department.size() <= 80 &&
+        data.phone is string && data.phone.size() <= 32 &&
+        data.email is string && data.email.size() <= 160 &&
+        data.active is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWeeklyBatch(data) {
+      return data.keys().hasAll([
+          'ownerId', 'weekKey', 'weekLabel', 'fileName', 'totalEmployees',
+          'compliantCount', 'nonCompliantCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId', 'weekKey', 'weekLabel', 'fileName', 'totalEmployees',
+          'compliantCount', 'nonCompliantCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+        data.weekKey is string && data.weekKey.size() >= 1 && data.weekKey.size() <= 32 &&
+        data.weekLabel is string && data.weekLabel.size() >= 1 && data.weekLabel.size() <= 80 &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 160 &&
+        data.totalEmployees is number && data.totalEmployees >= 0 && data.totalEmployees <= 10000 &&
+        data.compliantCount is number && data.compliantCount >= 0 && data.compliantCount <= 10000 &&
+        data.nonCompliantCount is number && data.nonCompliantCount >= 0 && data.nonCompliantCount <= 10000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidEvaluation(data, expectedBatchId) {
+      return data.keys().hasAll([
+          'ownerId', 'batchId', 'empCode', 'employeeName', 'department', 'phone', 'email',
+          'isCompliant', 'lateDaysCount', 'totalLateMinutes', 'earlyLeaveMinutes',
+          'missingPunchDays', 'absentDays', 'presentDays', 'decision', 'excusedDates',
+          'days', 'lastNotifiedAt', 'lastNotificationStatus', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId', 'batchId', 'empCode', 'employeeName', 'department', 'phone', 'email',
+          'isCompliant', 'lateDaysCount', 'totalLateMinutes', 'earlyLeaveMinutes',
+          'missingPunchDays', 'absentDays', 'presentDays', 'decision', 'excusedDates',
+          'days', 'lastNotifiedAt', 'lastNotificationStatus', 'createdAt', 'updatedAt'
+        ]) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+        isValidId(data.batchId) && data.batchId == expectedBatchId &&
+        isValidCode(data.empCode) &&
+        data.employeeName is string && data.employeeName.size() >= 1 && data.employeeName.size() <= 120 &&
+        data.department is string && data.department.size() <= 80 &&
+        data.phone is string && data.phone.size() <= 32 &&
+        data.email is string && data.email.size() <= 160 &&
+        data.isCompliant is bool &&
+        data.lateDaysCount is number && data.lateDaysCount >= 0 && data.lateDaysCount <= 7 &&
+        data.totalLateMinutes is number && data.totalLateMinutes >= 0 && data.totalLateMinutes <= 10000 &&
+        data.earlyLeaveMinutes is number && data.earlyLeaveMinutes >= 0 && data.earlyLeaveMinutes <= 10000 &&
+        data.missingPunchDays is number && data.missingPunchDays >= 0 && data.missingPunchDays <= 7 &&
+        data.absentDays is number && data.absentDays >= 0 && data.absentDays <= 7 &&
+        data.presentDays is number && data.presentDays >= 0 && data.presentDays <= 7 &&
+        data.decision in ['reward', 'allow_same', 'allow_with_warning', 'deny_reward', 'pending'] &&
+        data.excusedDates is list && data.excusedDates.size() <= 7 &&
+        (data.excusedDates.size() == 0 || (data.excusedDates[0] is string && data.excusedDates[0].size() <= 16)) &&
+        data.days is list && data.days.size() <= 7 &&
+        (data.days.size() == 0 || data.days[0] is map) &&
+        data.lastNotifiedAt is string && data.lastNotifiedAt.size() <= 64 &&
+        data.lastNotificationStatus in ['none', 'sent', 'failed', 'partial'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll([
+          'ownerId', 'batchId', 'weekKey', 'weekLabel', 'empCode', 'employeeName',
+          'recipient', 'decision', 'channel', 'status', 'messagePreview',
+          'errorMessage', 'sentByEmail', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId', 'batchId', 'weekKey', 'weekLabel', 'empCode', 'employeeName',
+          'recipient', 'decision', 'channel', 'status', 'messagePreview',
+          'errorMessage', 'sentByEmail', 'createdAt', 'updatedAt'
+        ]) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+        isValidId(data.batchId) &&
+        data.weekKey is string && data.weekKey.size() >= 1 && data.weekKey.size() <= 32 &&
+        data.weekLabel is string && data.weekLabel.size() >= 1 && data.weekLabel.size() <= 80 &&
+        isValidCode(data.empCode) &&
+        data.employeeName is string && data.employeeName.size() >= 1 && data.employeeName.size() <= 120 &&
+        data.recipient is string && data.recipient.size() <= 160 &&
+        data.decision in ['reward', 'allow_same', 'allow_with_warning', 'deny_reward'] &&
+        data.channel in ['whatsapp_api', 'whatsapp_web', 'email'] &&
+        data.status in ['sent', 'failed', 'pending'] &&
+        data.messagePreview is string && data.messagePreview.size() >= 1 && data.messagePreview.size() <= 1500 &&
+        data.errorMessage is string && data.errorMessage.size() <= 400 &&
+        data.sentByEmail is string && data.sentByEmail.size() <= 160 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserSettings(data) {
+      return data.keys().hasAll([
+          'ownerId', 'workStartTime', 'workEndTime', 'graceLateMinutes', 'graceEarlyMinutes',
+          'maxLateDaysAllowed', 'maxTotalLateMinutes', 'thursdayMorningOnly',
+          'countMissingPunchAsNonCompliant', 'countAbsenceAsNonCompliant',
+          'whatsappMode', 'whatsappProvider', 'whatsappPhoneNumberId', 'whatsappInstanceId',
+          'whatsappWebhookUrl', 'defaultCountryCode', 'emailEnabled', 'smtpHost', 'smtpPort',
+          'smtpSecure', 'smtpUser', 'emailFromName', 'emailFromAddress', 'emailSubject',
+          'templateReward', 'templateAllowWithWarning', 'templateDenyReward',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId', 'workStartTime', 'workEndTime', 'graceLateMinutes', 'graceEarlyMinutes',
+          'maxLateDaysAllowed', 'maxTotalLateMinutes', 'thursdayMorningOnly',
+          'countMissingPunchAsNonCompliant', 'countAbsenceAsNonCompliant',
+          'whatsappMode', 'whatsappProvider', 'whatsappPhoneNumberId', 'whatsappInstanceId',
+          'whatsappWebhookUrl', 'defaultCountryCode', 'emailEnabled', 'smtpHost', 'smtpPort',
+          'smtpSecure', 'smtpUser', 'emailFromName', 'emailFromAddress', 'emailSubject',
+          'templateReward', 'templateAllowWithWarning', 'templateDenyReward',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+        data.workStartTime is string && data.workStartTime.size() == 5 && data.workStartTime.matches('^[0-2][0-9]:[0-5][0-9]$') &&
+        data.workEndTime is string && data.workEndTime.size() == 5 && data.workEndTime.matches('^[0-2][0-9]:[0-5][0-9]$') &&
+        data.graceLateMinutes is number && data.graceLateMinutes >= 0 && data.graceLateMinutes <= 180 &&
+        data.graceEarlyMinutes is number && data.graceEarlyMinutes >= 0 && data.graceEarlyMinutes <= 180 &&
+        data.maxLateDaysAllowed is number && data.maxLateDaysAllowed >= 0 && data.maxLateDaysAllowed <= 5 &&
+        data.maxTotalLateMinutes is number && data.maxTotalLateMinutes >= 0 && data.maxTotalLateMinutes <= 600 &&
+        data.thursdayMorningOnly is bool &&
+        data.countMissingPunchAsNonCompliant is bool &&
+        data.countAbsenceAsNonCompliant is bool &&
+        data.whatsappMode in ['both', 'api', 'web'] &&
+        data.whatsappProvider in ['cloud_api', 'ultramsg', 'webhook'] &&
+        data.whatsappPhoneNumberId is string && data.whatsappPhoneNumberId.size() <= 120 &&
+        data.whatsappInstanceId is string && data.whatsappInstanceId.size() <= 120 &&
+        data.whatsappWebhookUrl is string && data.whatsappWebhookUrl.size() <= 300 &&
+        data.defaultCountryCode is string && data.defaultCountryCode.size() <= 8 &&
+        data.emailEnabled is bool &&
+        data.smtpHost is string && data.smtpHost.size() <= 160 &&
+        data.smtpPort is number && data.smtpPort >= 1 && data.smtpPort <= 65535 &&
+        data.smtpSecure is bool &&
+        data.smtpUser is string && data.smtpUser.size() <= 160 &&
+        data.emailFromName is string && data.emailFromName.size() <= 120 &&
+        data.emailFromAddress is string && data.emailFromAddress.size() <= 160 &&
+        data.emailSubject is string && data.emailSubject.size() <= 200 &&
+        data.templateReward is string && data.templateReward.size() >= 1 && data.templateReward.size() <= 1500 &&
+        data.templateAllowWithWarning is string && data.templateAllowWithWarning.size() >= 1 && data.templateAllowWithWarning.size() <= 1500 &&
+        data.templateDenyReward is string && data.templateDenyReward.size() >= 1 && data.templateDenyReward.size() <= 1500 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // Admins lookup collection (read-only for self check, managed out-of-band)
+    match /admins/{adminId} {
+      allow get: if isVerified() && isValidId(adminId) && request.auth.uid == adminId;
+      allow list, create, update, delete: if false;
+    }
+
+    // Connection test probe
+    match /test/{docId} {
+      allow get: if isSignedIn() && docId == 'connection';
+      allow list, create, update, delete: if false;
+    }
+
+    // Employee Directory (contains PII: phone & email — strictly owner/admin isolated)
+    match /employees/{employeeDocId} {
+      allow get: if isVerified() && isValidId(employeeDocId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerified() &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(employeeDocId) &&
+        isValidEmployee(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(employeeDocId) &&
+        isValidEmployee(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'empCode', 'name', 'department', 'phone', 'email', 'active', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isVerified() && isValidId(employeeDocId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    // Weekly Attendance Batches
+    match /weeklyBatches/{batchId} {
+      allow get: if isVerified() && isValidId(batchId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerified() &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(batchId) &&
+        isValidWeeklyBatch(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(batchId) &&
+        isValidWeeklyBatch(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'weekLabel', 'fileName', 'totalEmployees', 'compliantCount', 'nonCompliantCount', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isVerified() && isValidId(batchId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+
+      // Per-employee evaluations subcollection (Master Gate checks parent batch ownership)
+      match /evaluations/{evalId} {
+        allow get: if isVerified() && isValidId(batchId) && isValidId(evalId) &&
+          (
+            isAdmin() ||
+            (
+              existing().ownerId == request.auth.uid &&
+              get(/databases/$(database)/documents/weeklyBatches/$(batchId)).data.ownerId == request.auth.uid
+            )
+          );
+        allow list: if isVerified() &&
+          (existing().ownerId == request.auth.uid || isAdmin());
+        allow create: if isVerified() && isValidId(batchId) && isValidId(evalId) &&
+          isValidEvaluation(incoming(), batchId) &&
+          incoming().ownerId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          get(/databases/$(database)/documents/weeklyBatches/$(batchId)).data.ownerId == request.auth.uid;
+        allow update: if isVerified() && isValidId(batchId) && isValidId(evalId) &&
+          isValidEvaluation(incoming(), batchId) &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().batchId == existing().batchId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            isAdmin() ||
+            (
+              existing().ownerId == request.auth.uid &&
+              get(/databases/$(database)/documents/weeklyBatches/$(batchId)).data.ownerId == request.auth.uid &&
+              (
+                // Action 1: Manager decision update
+                incoming().diff(existing()).affectedKeys().hasOnly(['decision', 'updatedAt']) ||
+                // Action 2: Excuse day & compliance recalculation
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'excusedDates', 'days', 'isCompliant', 'lateDaysCount', 'totalLateMinutes',
+                  'earlyLeaveMinutes', 'missingPunchDays', 'absentDays', 'presentDays', 'decision', 'updatedAt'
+                ]) ||
+                // Action 3: Notification status sync
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'lastNotifiedAt', 'lastNotificationStatus', 'updatedAt'
+                ]) ||
+                // Action 4: Directory contact sync
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'employeeName', 'department', 'phone', 'email', 'updatedAt'
+                ])
+              )
+            )
+          );
+        allow delete: if isVerified() && isValidId(batchId) && isValidId(evalId) &&
+          (
+            isAdmin() ||
+            (
+              existing().ownerId == request.auth.uid &&
+              get(/databases/$(database)/documents/weeklyBatches/$(batchId)).data.ownerId == request.auth.uid
+            )
+          );
+      }
+    }
+
+    // Activity & Notification Dispatch Logs
+    match /activityLogs/{logId} {
+      allow get: if isVerified() && isValidId(logId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerified() &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(logId) &&
+        isValidActivityLog(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        get(/databases/$(database)/documents/weeklyBatches/$(incoming().batchId)).data.ownerId == request.auth.uid;
+      allow update: if isVerified() && isValidId(logId) &&
+        isValidActivityLog(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().batchId == existing().batchId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid &&
+            existing().status != 'sent' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'errorMessage', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerified() && isValidId(logId) && isAdmin();
+    }
+
+    // Manager Settings
+    match /userSettings/{userId} {
+      allow get: if isVerified() && isValidId(userId) &&
+        (userId == request.auth.uid || isAdmin());
+      allow list: if false;
+      allow create: if isVerified() && isValidId(userId) &&
+        userId == request.auth.uid &&
+        isValidUserSettings(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(userId) &&
+        isValidUserSettings(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            userId == request.auth.uid &&
+            existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'workStartTime', 'workEndTime', 'graceLateMinutes', 'graceEarlyMinutes',
+              'maxLateDaysAllowed', 'maxTotalLateMinutes', 'thursdayMorningOnly',
+              'countMissingPunchAsNonCompliant', 'countAbsenceAsNonCompliant',
+              'whatsappMode', 'whatsappProvider', 'whatsappPhoneNumberId', 'whatsappInstanceId',
+              'whatsappWebhookUrl', 'defaultCountryCode', 'emailEnabled', 'smtpHost', 'smtpPort',
+              'smtpSecure', 'smtpUser', 'emailFromName', 'emailFromAddress', 'emailSubject',
+              'templateReward', 'templateAllowWithWarning', 'templateDenyReward', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if false;
+    }
+  }
+}
